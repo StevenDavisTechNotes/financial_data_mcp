@@ -12,7 +12,13 @@ This folder contains scripts of prompts and responses from these experiments.
 
 This folder contains a sample self-contained MCP Server to verify the basic plumbing.
 
-### Folder ``
+### Folder `src\sqlite-explorer-fastmcp-mcp-server`
+
+This folder contains an MCP Server that exposes a SQLite database.
+
+### Folder `src\test_data`
+
+This folder contains tooling to populate the SQLite database with either Star Wars or financial data.
 
 ## Install on Windows
 
