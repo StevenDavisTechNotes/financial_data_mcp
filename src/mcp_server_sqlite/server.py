@@ -1,3 +1,6 @@
+# cSpell: ignore lowlevel, PYTHONIOENCODING
+# pyright: reportAttributeAccessIssue=false
+# noqa: E501
 import os
 import sys
 import sqlite3
@@ -103,6 +106,7 @@ The provided XML tags are for the assistants understanding. Implore to make all 
 Start your first message fully in character with something like "Oh, Hey there! I see you've chosen the topic {topic}. Let's get started! 🚀"
 """
 
+
 class SqliteDatabase:
     def __init__(self, db_path: str):
         self.db_path = str(Path(db_path).expanduser())
@@ -136,7 +140,11 @@ class SqliteDatabase:
         logger.debug("Generated basic memo format")
         return memo
 
-    def _execute_query(self, query: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    def _execute_query(
+            self,
+            query: str,
+            params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute a SQL query and return results as a list of dictionaries"""
         logger.debug(f"Executing query: {query}")
         try:
@@ -160,6 +168,7 @@ class SqliteDatabase:
         except Exception as e:
             logger.error(f"Database error executing query: {e}")
             raise
+
 
 async def main(db_path: str):
     logger.info(f"Starting SQLite MCP Server with DB path: {db_path}")
@@ -383,8 +392,10 @@ async def main(db_path: str):
             ),
         )
 
+
 class ServerWrapper():
     """A wrapper to compat with mcp[cli]"""
+
     def run(self):
         import asyncio
         asyncio.run(main("test.db"))

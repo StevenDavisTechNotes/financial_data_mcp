@@ -1,11 +1,3 @@
 {
-    "cSpell.words": [
-        "cusip",
-        "cusips",
-        "executemany",
-        "executescript",
-        "investable",
-        "investables",
-        "pyprojroot"
-    ]
+    "chat.mcp.enabled": true
 }
