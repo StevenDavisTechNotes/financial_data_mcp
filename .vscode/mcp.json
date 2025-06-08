@@ -12,14 +12,6 @@
         },
         "mcp_server_sql_sse": {
             "url": "http://127.0.0.1:8000/sse"
-        },
-        "mcp_server_sql_stdio": {
-            "type": "stdio",
-            "command": "C:\\Src\\GitHub_Hosted\\financial_data_mcp\\.venv\\Scripts\\python.exe",
-            "args": [
-                "-m",
-                "src.mcp_server_sqlite.main"
-            ]
         }
     }
 }

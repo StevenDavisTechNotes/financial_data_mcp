@@ -10,6 +10,7 @@
         "cusips",
         "executemany",
         "executescript",
+        "fastmcp",
         "investable",
         "investables",
         "isort",

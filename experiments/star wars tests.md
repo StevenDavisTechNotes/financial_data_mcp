@@ -2,61 +2,51 @@
 
 ## Credits
 
+### Install
 
-### STDIO
-#### Office Joke
-
-```txt
-Give me an office joke
-
-GitHub Copilot
-Ran fun_mcp_server_stdio (MCP Server)
-
-Why did the bicycle fall over? It was two-tired!
-
-```
-
-
-#### Current Date
-
-```txt
-Get current date
-
-GitHub Copilot
-Ran fun_mcp_server_stdio (MCP Server)
-
-The current date is 2025-06-08.
-
-When is the next year that has a leap day?
-
-GitHub Copilot
-> Used 1 reference
-
-The next leap year is 2028.
-
-```
+- Run `python -m src.test_data.populate_db --data star-wars`
+- Run `python -m src.sqlite-explorer-fastmcp-mcp-server.main`
+- Restart mcp server in client
 
 ### SSE
 Use a separate mcp client rather than the same VSCode project, or Github Copilot will just read the code and not call the server!
 
-#### Office Joke
+#### Planets
 
 ```txt
-Using the MCP server fun_mcp_server_sse, give me an office joke
+What tables does the MCP Server mcp_server_sql_sse have access to?
 
 GitHub Copilot
-> Ran fun_mcp_server_sse (MCP Server)
-Why don't scientists trust atoms? Because they make up everything!
+Ran list-tables fun_mcp_server_sse (MCP Server)
+The MCP Server mcp_server_sql_sse has access to the following table:
+
+people
+planet
 
 ```
 
 #### Current Date
 
 ```txt
-Using the MCP server fun_mcp_server_sse, determine when the next year that has a leap day?
+What are the distinct gravity values in the table planet?
 
 GitHub Copilot
-> Ran fun_mcp_server_sse (MCP Server)
-The next leap year after 2025 is 2028.
+Ran read_query fun_mcp_server_sse (MCP Server)
+The distinct gravity values in the planet table are:
+
+1 standard
+1.1 standard
+N/A
+1.5 (surface), 1 standard (Cloud City)
+0.85 standard
+0.9 standard
+0.56 standard
+0.75 standard
+null
+0.62 standard
+1
+1.56
+0.9
+0.98
 
 ```
