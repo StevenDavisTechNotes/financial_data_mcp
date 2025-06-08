@@ -76,7 +76,7 @@ The server offers six core tools:
       "run",
       "mcp-server-sqlite",
       "--db-path",
-      "~/test.db"
+      "~/data.db"
     ]
   }
 }
@@ -97,7 +97,7 @@ The server offers six core tools:
       "mcp-test:/mcp",
       "mcp/sqlite",
       "--db-path",
-      "/mcp/test.db"
+      "/mcp/data.db"
     ]
   }
 }

@@ -5,6 +5,7 @@
         "executemany",
         "executescript",
         "investable",
-        "investables"
+        "investables",
+        "pyprojroot"
     ]
 }

@@ -5,10 +5,23 @@ import os
 import sqlite3
 import random
 import string
+import math  # Import math module
+from dataclasses import dataclass, astuple  # Import dataclass and astuple
 
 DB_FILE: str = "data.db"
 # Assumed to be in the same directory as the script
 STAR_WARS_SQL_FILE: str = "scripts/star_wars.sql"
+
+CASH_ISSUER_CD = "CASH"
+CASH_SEC_ID = "CASH"
+CASH_CUSIP = "CASH"
+
+
+@dataclass
+class InvestmentRecord:
+    acct_cd: str
+    sec_id: str
+    weight: float
 
 
 def generate_random_string(
@@ -34,13 +47,13 @@ def populate_financial_data(cursor: sqlite3.Cursor) -> None:
         )
     ''')
     cursor.execute('''
-        CREATE TABLE investable (
+        CREATE TABLE security (
             sec_id TEXT PRIMARY KEY,
+            issuer_cd TEXT,
             cusip TEXT UNIQUE,
             mkt_price REAL,
             beta_value REAL,
             duration REAL,
-            issuer_cd TEXT,
             FOREIGN KEY (issuer_cd) REFERENCES issuer(issuer_cd)
         )
     ''')
@@ -51,7 +64,7 @@ def populate_financial_data(cursor: sqlite3.Cursor) -> None:
             weight REAL,
             PRIMARY KEY (acct_cd, sec_id),
             FOREIGN KEY (acct_cd) REFERENCES account(acct_cd),
-            FOREIGN KEY (sec_id) REFERENCES investable(sec_id)
+            FOREIGN KEY (sec_id) REFERENCES security(sec_id)
         )
     ''')
 
@@ -69,7 +82,12 @@ def populate_financial_data(cursor: sqlite3.Cursor) -> None:
     # Populate issuer table
     issuers_data: list[tuple[str]] = []
     generated_issuer_cds: set[str] = set()
-    for _ in range(5):  # 5 issuers
+
+    # Add CASH issuer first
+    issuers_data.append((CASH_ISSUER_CD,))
+    generated_issuer_cds.add(CASH_ISSUER_CD)
+
+    for _ in range(4):  # 4 more random issuers to make a total of 5
         while True:
             issuer_cd: str = (
                 "ISS_"
@@ -81,14 +99,21 @@ def populate_financial_data(cursor: sqlite3.Cursor) -> None:
                 break
     cursor.executemany(
         "INSERT INTO issuer (issuer_cd) VALUES (?)", issuers_data)
-    issuer_cd_list: list[str] = sorted(generated_issuer_cds)
+    issuer_cd_list: list[str] = sorted(list(generated_issuer_cds)) # Convert set to list before sorting
 
-    # Populate investable table
-    investables_data: list[tuple[str, str, str, float, float, float]] = []
+    # Populate security table
+    securities_data: list[tuple[str, str, str, float, float, float]] = []
     security_ids: list[str] = []
     generated_cusips: set[str] = set()
-    for i in range(1, 21):  # 20 securities
-        sec_id: str = f"SEC{i:004d}"
+
+    # Add CASH security first
+    cash_security_tuple = (CASH_SEC_ID, CASH_ISSUER_CD, CASH_CUSIP, 1.0, 0.0, 0.0)
+    securities_data.append(cash_security_tuple)
+    security_ids.append(CASH_SEC_ID)
+    generated_cusips.add(CASH_CUSIP)
+
+    for i in range(1, 20):  # 19 more random securities to make a total of 20
+        sec_id: str = f"SEC{i:004d}" # Starts from SEC0001 up to SEC0019
         security_ids.append(sec_id)
 
         while True:
@@ -96,39 +121,118 @@ def populate_financial_data(cursor: sqlite3.Cursor) -> None:
             if cusip not in generated_cusips:
                 generated_cusips.add(cusip)
                 break
+        
+        # Randomly assign an issuer_cd from the populated issuers (can include CASH, or filter it out if needed)
+        # For simplicity, allowing random securities to also be issued by "CASH" or other issuers.
+        # If CASH issuer should only issue CASH security, filter CASH_ISSUER_CD from random assignment.
+        random_issuer_cd_list = [icd for icd in issuer_cd_list if icd != CASH_ISSUER_CD] if len(issuer_cd_list) > 1 else issuer_cd_list
+        assigned_issuer_cd: str = random.choice(random_issuer_cd_list if random_issuer_cd_list else [CASH_ISSUER_CD])
+
 
         mkt_price: float = round(random.uniform(10, 1000), 2)
         beta_value: float = round(random.uniform(0.5, 2.5), 4)
         duration: float = round(random.uniform(1, 10), 2)
-        # Randomly assign an issuer_cd from the populated issuers
-        assigned_issuer_cd: str = random.choice(issuer_cd_list)
-
-        investables_data.append(
+        
+        securities_data.append(
             (sec_id, assigned_issuer_cd, cusip,
              mkt_price, beta_value, duration))
     cursor.executemany(
         """
-        INSERT INTO investable
+        INSERT INTO security
         (sec_id, issuer_cd, cusip, mkt_price, beta_value, duration)
         VALUES (?, ?, ?, ?, ?, ?)
         """,
-        investables_data
+        securities_data
     )
 
     # Populate investment table
-    investments_data: list[tuple[str, str, float]] = []
+    investments_data_objects: list[InvestmentRecord] = []
+    other_security_ids = [sid for sid in security_ids if sid != CASH_SEC_ID]
+
     for acct_cd in account_ids:
-        # Each account holds 2 to 5 securities
-        num_investments: int = random.randint(2, min(5, len(security_ids)))
-        if not security_ids:
+        total_available_other_securities = len(other_security_ids)
+
+        if total_available_other_securities == 0:
+            # Only CASH security is available, or no other securities to choose from
+            investments_data_objects.append(InvestmentRecord(acct_cd=acct_cd, sec_id=CASH_SEC_ID, weight=1.0))
             continue
 
-        chosen_securities: list[str] = random.sample(
-            security_ids, num_investments)
-        for sec_id in chosen_securities:
-            weight: float = round(random.uniform(0.05, 0.3),
-                                  4)  # Weights between 5% and 30%
-            investments_data.append((acct_cd, sec_id, weight))
+        # Determine the number of *additional* investments from other_security_ids
+        lower_bound_raw = 0.20 * total_available_other_securities
+        upper_bound_raw = 0.80 * total_available_other_securities
+
+        min_additional_investments = math.ceil(lower_bound_raw)
+        max_additional_investments = math.floor(upper_bound_raw)
+
+        min_additional_investments = max(1, int(min_additional_investments)) # Must pick at least 1 other if available
+        max_additional_investments = min(total_available_other_securities, int(max_additional_investments))
+
+        if min_additional_investments > max_additional_investments:
+            max_additional_investments = min_additional_investments
+        
+        max_additional_investments = min(max_additional_investments, total_available_other_securities)
+
+
+        num_additional_investments: int
+        if max_additional_investments == 0 : # Should not happen if total_available_other_securities > 0 due to min_additional_investments = max(1,...)
+             num_additional_investments = 0 # Fallback, though logic aims to prevent this if others available
+        elif min_additional_investments > max_additional_investments: # Should be resolved
+             num_additional_investments = min_additional_investments if min_additional_investments > 0 else 0
+        else:
+             num_additional_investments = random.randint(min_additional_investments, max_additional_investments)
+
+
+        if num_additional_investments == 0:
+            # No additional securities chosen, so CASH gets 100%
+            investments_data_objects.append(InvestmentRecord(acct_cd=acct_cd, sec_id=CASH_SEC_ID, weight=1.0))
+        else:
+            # Invest 10% in CASH
+            investments_data_objects.append(InvestmentRecord(acct_cd=acct_cd, sec_id=CASH_SEC_ID, weight=0.1))
+            remaining_weight_to_distribute = 0.9
+
+            chosen_other_securities: list[str] = random.sample(
+                other_security_ids, num_additional_investments)
+
+            calculated_weights: list[float]
+            if num_additional_investments == 1: # Only one other security to give the remaining 0.9
+                calculated_weights = [remaining_weight_to_distribute]
+            else:
+                raw_proportions = [random.uniform(0.05, 1.0) for _ in range(num_additional_investments)]
+                total_proportion = sum(raw_proportions)
+                
+                scaled_target_sum = int(remaining_weight_to_distribute * 10000) # e.g. 9000 for 0.9
+
+                if total_proportion == 0: # Fallback, highly unlikely
+                    equal_weight = round(remaining_weight_to_distribute / num_additional_investments, 4)
+                    calculated_weights = [equal_weight] * num_additional_investments
+                    current_sum_of_equal_weights = sum(calculated_weights[:-1])
+                    calculated_weights[-1] = round(remaining_weight_to_distribute - current_sum_of_equal_weights, 4)
+                else:
+                    exact_scaled_weights = [(p / total_proportion) * scaled_target_sum for p in raw_proportions]
+                    rounded_down_scaled_weights = [int(sw) for sw in exact_scaled_weights]
+                    sum_of_rounded_down = sum(rounded_down_scaled_weights)
+                    points_to_distribute = scaled_target_sum - sum_of_rounded_down
+                    
+                    fractional_parts_with_indices = sorted(
+                        [(exact_scaled_weights[i] - rounded_down_scaled_weights[i], i) for i in range(num_additional_investments)],
+                        reverse=True
+                    )
+                    
+                    for j in range(points_to_distribute):
+                        idx_to_increment = fractional_parts_with_indices[j % num_additional_investments][1]
+                        rounded_down_scaled_weights[idx_to_increment] += 1
+                    
+                    calculated_weights = [sw / 10000.0 for sw in rounded_down_scaled_weights]
+
+            for i, sec_id_other in enumerate(chosen_other_securities):
+                weight_to_assign = calculated_weights[i]
+                investments_data_objects.append(InvestmentRecord(
+                    acct_cd=acct_cd, sec_id=sec_id_other, weight=weight_to_assign))
+
+    # Convert list of dataclass objects to list of tuples for executemany
+    # This part was updated in a previous step to use a generator expression
+    # For clarity, ensuring it's compatible:
+    investments_data_tuples = [astuple(record) for record in investments_data_objects]
 
     # Use INSERT OR IGNORE in case of any (unlikely) duplicate
     # (acct_cd, sec_id) pairs from random sampling logic
@@ -137,7 +241,9 @@ def populate_financial_data(cursor: sqlite3.Cursor) -> None:
         INSERT OR IGNORE INTO investment
         (acct_cd, sec_id, weight)
         VALUES (?, ?, ?)
-        """, investments_data)
+        """,
+        investments_data_tuples,  # Use the generated list of tuples
+    )
 
 
 def main() -> None:
